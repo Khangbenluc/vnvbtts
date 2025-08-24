@@ -91,7 +91,7 @@ def build_english_announcement(name: str, location: str, closing: str) -> str:
     try:
         location_en = translator.translate(location, src='vi', dest='en').text
         closing_en = translator.translate(closing, src='vi', dest='en').text if closing else ""
-        text_en = f"Please invite customer {name} to {location_en}. {closing_en}"
+        text_en = f"We invite customer {name} to {location_en}. {closing_en}"
         return text_en
     except Exception as e:
         st.error(f"❌ Lỗi dịch sang tiếng Anh: {e}")
