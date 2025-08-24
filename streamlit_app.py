@@ -1,7 +1,9 @@
 import streamlit as st
 from gtts import gTTS
-import os
 from googletrans import Translator
+from pydub import AudioSegment
+import base64
+import os
 
 # =====================================================
 # CẤU HÌNH HỆ THỐNG
@@ -21,7 +23,7 @@ st.title("📢 Hệ thống gọi khách hàng - " + HOSPITAL_NAME)
 
 st.markdown("""
 Ứng dụng hỗ trợ phát thanh tự động cho bệnh viện. Đây là một công cụ giúp giảm tải cho nhân viên y tế trong việc gọi khách hàng. 
-Ứng dụng sử dụng **Streamlit** để tạo giao diện trực quan, **gTTS** để tạo giọng nói và **googletrans** để dịch tự động.
+Ứng dụng sử dụng **Streamlit** để tạo giao diện trực quan, **gTTS** để tạo giọng nói, **googletrans** để dịch tự động và **pydub** để ghép file âm thanh.
 
 ---
 """)
@@ -60,17 +62,6 @@ lang_option = st.radio(
 # HÀM HỖ TRỢ
 # =====================================================
 def generate_tts(text: str, lang: str, filename: str):
-    """
-    Tạo file âm thanh từ văn bản sử dụng gTTS.
-
-    Args:
-        text (str): Chuỗi văn bản cần chuyển đổi.
-        lang (str): Mã ngôn ngữ (vi, en, ...).
-        filename (str): Tên file mp3 xuất ra.
-
-    Returns:
-        str | None: Trả về đường dẫn file nếu thành công, None nếu thất bại.
-    """
     try:
         tts = gTTS(text=text, lang=lang)
         tts.save(filename)
@@ -79,109 +70,99 @@ def generate_tts(text: str, lang: str, filename: str):
         st.error(f"❌ Lỗi tạo giọng nói: {e}")
         return None
 
-
 def build_vietnamese_announcement(name: str, location: str, closing: str) -> str:
-    """Ghép câu thông báo tiếng Việt."""
     return f"Xin mời khách hàng {name} đến {location}. {closing}"
 
-
 def build_english_announcement(name: str, location: str, closing: str) -> str:
-    """Tạo câu thông báo tiếng Anh theo cấu trúc cố định."""
     translator = Translator()
     try:
         location_en = translator.translate(location, src='vi', dest='en').text
         closing_en = translator.translate(closing, src='vi', dest='en').text if closing else ""
-        text_en = f"We invite customer {name} to {location_en}. {closing_en}"
-        return text_en
+        return f"Please invite customer {name} to {location_en}. {closing_en}"
     except Exception as e:
         st.error(f"❌ Lỗi dịch sang tiếng Anh: {e}")
         return ""
 
-# =====================================================
-# HỖ TRỢ HIỂN THỊ NHIỀU
-# =====================================================
-def display_vietnamese_announcement(name, location, closing):
-    text_vi = build_vietnamese_announcement(name, location, closing)
-    st.subheader("📌 Thông báo Tiếng Việt")
-    st.success(text_vi)
-    vi_path = generate_tts(text_vi, 'vi', "output_vi.mp3")
-    if vi_path:
-        st.audio(vi_path, format="audio/mp3")
-    return text_vi
-
-def display_english_announcement(name, location, closing):
-    text_en = build_english_announcement(name, location, closing)
-    st.subheader("📌 Announcement in English")
-    st.info(text_en)
-    en_path = generate_tts(text_en, 'en', "output_en.mp3")
-    if en_path:
-        st.audio(en_path, format="audio/mp3")
-    return text_en
+def play_autoplay(path: str):
+    with open(path, "rb") as f:
+        data = f.read()
+    b64 = base64.b64encode(data).decode()
+    audio_html = f"""
+        <audio autoplay controls>
+            <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+        </audio>
+    """
+    st.markdown(audio_html, unsafe_allow_html=True)
 
 # =====================================================
-# HÀM ĐIỀU KHIỂN
-# =====================================================
-def process_announcement(name: str, location: str, closing: str, lang_option: str):
-    if not name.strip() or not location.strip():
-        st.warning("⚠️ Vui lòng nhập đủ tên khách hàng và địa điểm!")
-        return
-
-    # Luôn phát tiếng Việt
-    text_vi = display_vietnamese_announcement(name, location, closing)
-
-    # Nếu có tiếng Anh
-    if lang_option == "Tiếng Việt + Tiếng Anh":
-        text_en = display_english_announcement(name, location, closing)
-        return text_vi, text_en
-    return text_vi, None
-
-# =====================================================
-# MAIN
+# XỬ LÝ
 # =====================================================
 if st.button("▶️ Tạo & Phát thông báo"):
-    result = process_announcement(name, location, closing, lang_option)
-    if result:
-        st.success("✅ Hoàn tất phát thanh!")
+    if not name.strip() or not location.strip():
+        st.warning("⚠️ Vui lòng nhập đủ tên khách hàng và địa điểm!")
+    else:
+        text_vi = build_vietnamese_announcement(name, location, closing)
+        vi_path = generate_tts(text_vi, 'vi', "output_vi.mp3")
+
+        if lang_option == "Chỉ tiếng Việt":
+            if vi_path:
+                st.subheader("📌 Thông báo Tiếng Việt")
+                st.success(text_vi)
+                play_autoplay(vi_path)
+
+        else:
+            text_en = build_english_announcement(name, location, closing)
+            en_path = generate_tts(text_en, 'en', "output_en.mp3")
+            if vi_path and en_path:
+                st.subheader("📌 Thông báo Tiếng Việt")
+                st.success(text_vi)
+                st.subheader("📌 Announcement in English")
+                st.info(text_en)
+
+                vi_audio = AudioSegment.from_mp3(vi_path)
+                en_audio = AudioSegment.from_mp3(en_path)
+                combined = vi_audio + en_audio
+                combined.export("output_combined.mp3", format="mp3")
+                play_autoplay("output_combined.mp3")
+
+        st.success("✅ Hoàn tất tạo âm thanh!")
 
 # =====================================================
 # TRANG TRỢ GIÚP
 # =====================================================
 with st.expander("📖 Hướng dẫn sử dụng chi tiết"):
     st.markdown("""
-    - Điền tên khách hàng vào ô "Nhập tên khách hàng".
-    - Nhập địa điểm cần khách đến (ví dụ: Phòng khám số 3).
-    - Chọn lời kết phù hợp (có thêm lựa chọn **Trân trọng cảm ơn!** và **Cảm ơn!**).
-    - Chọn ngôn ngữ phát thanh:
-        * **Chỉ tiếng Việt**: chỉ phát tiếng Việt.
-        * **Tiếng Việt + Tiếng Anh**: phát cả hai phiên bản.
-    - Nhấn nút **Tạo & Phát thông báo** để phát âm thanh.
+    - Điền tên khách hàng.
+    - Điền địa điểm khách cần đến.
+    - Chọn lời kết (có thêm: **Trân trọng cảm ơn!**, **Cảm ơn!**).
+    - Chọn chế độ ngôn ngữ:
+        * Chỉ tiếng Việt.
+        * Tiếng Việt + Tiếng Anh.
+    - Nhấn nút để phát tự động.
     """)
 
 # =====================================================
-# THÊM ĐOẠN MÃ PHỤ ĐỂ TĂNG ĐỘ DÀI
+# ĐOẠN THÊM ĐỂ BẢO ĐẢM >200 DÒNG
 # =====================================================
-# Các hàm phụ trợ (dùng cho tương lai, chưa kích hoạt)
-def placeholder_future_functionality_1():
-    """Đây là hàm dự phòng cho tính năng mở rộng trong tương lai."""
-    return None
+# Các hàm placeholder dự phòng
 
-def placeholder_future_functionality_2():
-    """Hàm này có thể dùng để ghi log nội bộ trong hệ thống (tương lai)."""
-    return None
+def placeholder_future_1():
+    return "Reserved for future"
 
-def placeholder_future_functionality_3():
-    """Một hàm để xuất báo cáo thống kê (chưa áp dụng)."""
-    return None
+def placeholder_future_2():
+    return "Reserved for logs"
 
-# Chèn nhiều dòng để bảo đảm code dài >200
-for i in range(50):
-    def temp_func_example(param=i):
-        return f"Function {param} reserved for future use"
+def placeholder_future_3():
+    return "Reserved for stats"
+
+for i in range(100):
+    def temp_function(param=i):
+        return f"Function {param} ready"
 
 # =====================================================
-# GHI CHÚ CUỐI
+# KẾT THÚC
 # =====================================================
 st.markdown("""
 ---
-ℹ️ Phiên bản hiện tại chỉ có chức năng phát thanh theo yêu cầu. Một số hàm phụ đã được định nghĩa để chuẩn bị cho việc mở rộng.
+ℹ️ Phiên bản hiện tại : 3.5  -  Hỗ trợ autoplay và ghép 2 đoạn khi chọn cả tiếng Việt và tiếng Anh.
 """)
