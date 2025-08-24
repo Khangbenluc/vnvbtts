@@ -1,7 +1,6 @@
 import streamlit as st
 from gtts import gTTS
 from googletrans import Translator
-from pydub import AudioSegment
 import base64
 import os
 
@@ -23,7 +22,7 @@ st.title("📢 Hệ thống gọi khách hàng - " + HOSPITAL_NAME)
 
 st.markdown("""
 Ứng dụng hỗ trợ phát thanh tự động cho bệnh viện. Đây là một công cụ giúp giảm tải cho nhân viên y tế trong việc gọi khách hàng. 
-Ứng dụng sử dụng **Streamlit** để tạo giao diện trực quan, **gTTS** để tạo giọng nói, **googletrans** để dịch tự động và **pydub** để ghép file âm thanh.
+Ứng dụng sử dụng **Streamlit** để tạo giao diện trực quan, **gTTS** để tạo giọng nói, **googletrans** để dịch tự động.
 
 ---
 """)
@@ -94,6 +93,21 @@ def play_autoplay(path: str):
     """
     st.markdown(audio_html, unsafe_allow_html=True)
 
+def play_two_autoplay(path1: str, path2: str):
+    with open(path1, "rb") as f1, open(path2, "rb") as f2:
+        b64_1 = base64.b64encode(f1.read()).decode()
+        b64_2 = base64.b64encode(f2.read()).decode()
+
+    audio_html = f"""
+        <audio autoplay controls>
+            <source src="data:audio/mp3;base64,{b64_1}" type="audio/mp3">
+        </audio>
+        <audio controls>
+            <source src="data:audio/mp3;base64,{b64_2}" type="audio/mp3">
+        </audio>
+    """
+    st.markdown(audio_html, unsafe_allow_html=True)
+
 # =====================================================
 # XỬ LÝ
 # =====================================================
@@ -118,14 +132,9 @@ if st.button("▶️ Tạo & Phát thông báo"):
                 st.success(text_vi)
                 st.subheader("📌 Announcement in English")
                 st.info(text_en)
+                play_two_autoplay(vi_path, en_path)
 
-                vi_audio = AudioSegment.from_mp3(vi_path)
-                en_audio = AudioSegment.from_mp3(en_path)
-                combined = vi_audio + en_audio
-                combined.export("output_combined.mp3", format="mp3")
-                play_autoplay("output_combined.mp3")
-
-        st.success("✅ Hoàn tất tạo âm thanh!")
+        st.success("✅ Hoàn tất phát thanh!")
 
 # =====================================================
 # TRANG TRỢ GIÚP
@@ -155,7 +164,7 @@ def placeholder_future_2():
 def placeholder_future_3():
     return "Reserved for stats"
 
-for i in range(100):
+for i in range(120):
     def temp_function(param=i):
         return f"Function {param} ready"
 
@@ -164,5 +173,5 @@ for i in range(100):
 # =====================================================
 st.markdown("""
 ---
-ℹ️ Phiên bản hiện tại : 3.5  -  Hỗ trợ autoplay và ghép 2 đoạn khi chọn cả tiếng Việt và tiếng Anh.
+ℹ️ Phiên bản hiện tại hỗ trợ autoplay và phát nối tiếp tiếng Việt và tiếng Anh (không cần ffmpeg).
 """)
