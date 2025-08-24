@@ -8,6 +8,7 @@ import os
 # CẤU HÌNH HỆ THỐNG
 # =====================================================
 HOSPITAL_NAME = "Trung tâm tiêm chủng VNVB"
+APP_VERSION = "v1.2"
 
 # =====================================================
 # CÀI ĐẶT GIAO DIỆN
@@ -77,7 +78,7 @@ def build_english_announcement(name: str, location: str, closing: str) -> str:
     try:
         location_en = translator.translate(location, src='vi', dest='en').text
         closing_en = translator.translate(closing, src='vi', dest='en').text if closing else ""
-        return f"Please invite customer {name} to {location_en}. {closing_en}"
+        return f"We invite customer {name} to {location_en}. {closing_en}"
     except Exception as e:
         st.error(f"❌ Lỗi dịch sang tiếng Anh: {e}")
         return ""
@@ -89,21 +90,6 @@ def play_autoplay(path: str):
     audio_html = f"""
         <audio autoplay controls>
             <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
-        </audio>
-    """
-    st.markdown(audio_html, unsafe_allow_html=True)
-
-def play_two_autoplay(path1: str, path2: str):
-    with open(path1, "rb") as f1, open(path2, "rb") as f2:
-        b64_1 = base64.b64encode(f1.read()).decode()
-        b64_2 = base64.b64encode(f2.read()).decode()
-
-    audio_html = f"""
-        <audio autoplay controls>
-            <source src="data:audio/mp3;base64,{b64_1}" type="audio/mp3">
-        </audio>
-        <audio controls>
-            <source src="data:audio/mp3;base64,{b64_2}" type="audio/mp3">
         </audio>
     """
     st.markdown(audio_html, unsafe_allow_html=True)
@@ -126,13 +112,13 @@ if st.button("▶️ Tạo & Phát thông báo"):
 
         else:
             text_en = build_english_announcement(name, location, closing)
-            en_path = generate_tts(text_en, 'en', "output_en.mp3")
-            if vi_path and en_path:
-                st.subheader("📌 Thông báo Tiếng Việt")
+            combined_text = text_vi + " " + text_en
+            combined_path = generate_tts(combined_text, 'vi', "output_combined.mp3")
+            if combined_path:
+                st.subheader("📌 Thông báo song ngữ")
                 st.success(text_vi)
-                st.subheader("📌 Announcement in English")
                 st.info(text_en)
-                play_two_autoplay(vi_path, en_path)
+                play_autoplay(combined_path)
 
         st.success("✅ Hoàn tất phát thanh!")
 
@@ -169,9 +155,16 @@ for i in range(120):
         return f"Function {param} ready"
 
 # =====================================================
-# KẾT THÚC
+# KẾT THÚC + PHIÊN BẢN
 # =====================================================
 st.markdown("""
 ---
-ℹ️ Phiên bản hiện tại hỗ trợ autoplay và phát nối tiếp tiếng Việt và tiếng Anh (không cần ffmpeg).
-""")
+### ℹ️ Thông tin ứng dụng
+- Phiên bản: {APP_VERSION}
+- Chức năng chính:
+  * Phát thanh tiếng Việt.
+  * Phát thanh song ngữ (Việt + Anh).
+  * Tự động phát (autoplay).
+  * Lời kết đa dạng: "Trân trọng cảm ơn!", "Cảm ơn!".
+---
+""".format(APP_VERSION=APP_VERSION))
