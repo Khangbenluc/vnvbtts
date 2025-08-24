@@ -32,6 +32,8 @@ closing = st.selectbox(
     "🙏 Chọn lời kết:",
     [
         "Xin cảm ơn!",
+        "Trân trọng cảm ơn!",
+        "Cảm ơn!",
         "Vui lòng đến ngay!",
         "Chúc sức khỏe!",
         "Rất mong quý khách hợp tác!",
@@ -77,7 +79,7 @@ def generate_tts(text: str, lang: str, filename: str):
 
 def build_vietnamese_announcement(name: str, location: str, closing: str) -> str:
     """Ghép câu thông báo tiếng Việt."""
-    return f"Xin mời khách hàng {name} đến {location}. {closing} {HOSPITAL_NAME}."
+    return f"Xin mời khách hàng {name} đến {location}. {closing} ."
 
 
 def translate_text_to_english(text: str) -> str:
